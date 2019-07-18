@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """Setup file for easy installation"""
 import sys
-from os.path import join, dirname
+import os
+from os.path import join, dirname, split
 from setuptools import setup
 
 
-PY3 = sys.version_info[0] == 3
+PY3 = os.environ.get('BUILD_VERSION') == '3' or sys.version_info[0] == 3
 
 version = __import__('social').__version__
 
@@ -28,46 +29,72 @@ def long_description():
         return LONG_DESCRIPTION
 
 
-requires = ['requests>=1.1.0', 'oauthlib>=0.3.8', 'six>=1.2.0']
-if PY3:
-    requires += ['python3-openid>=3.0.1',
-                 'requests-oauthlib>=0.3.0,<0.3.2']
-else:
-    requires += ['python-openid>=2.2', 'requests-oauthlib>=0.3.0']
+def path_tokens(path):
+    if not path:
+        return []
+    head, tail = split(path)
+    return path_tokens(head) + [tail]
 
-setup(name='python-social-auth',
-      version=version,
-      author='Matias Aguirre',
-      author_email='matiasaguirre@gmail.com',
-      description='Python social authentication made simple.',
-      license='BSD',
-      keywords='django, flask, pyramid, webpy, openid, oauth, social auth',
-      url='https://github.com/omab/python-social-auth',
-      packages=['social',
-                'social.storage',
-                'social.apps',
-                'social.apps.django_app',
-                'social.apps.django_app.default',
-                'social.apps.django_app.me',
-                'social.apps.webpy_app',
-                'social.apps.flask_app',
-                'social.backends',
-                'social.pipeline',
-                'social.strategies',
-                'social.tests.actions',
-                'social.tests.backends',
-                'social.tests'],
-      #package_data={'social': ['locale/*/LC_MESSAGES/*']},
-      long_description=long_description(),
-      install_requires=requires,
-      classifiers=['Development Status :: 4 - Beta',
-                   'Topic :: Internet',
-                   'License :: OSI Approved :: BSD License',
-                   'Intended Audience :: Developers',
-                   'Environment :: Web Environment',
-                   'Programming Language :: Python',
-                   'Programming Language :: Python :: 2.6',
-                   'Programming Language :: Python :: 2.7',
-                   'Programming Language :: Python :: 3'],
-      test_suite='social.tests',
-      zip_safe=False)
+
+def get_packages():
+    exclude_pacakages = ('__pycache__',)
+    packages = []
+    for path_info in os.walk('social'):
+        tokens = path_tokens(path_info[0])
+        if tokens[-1] not in exclude_pacakages:
+            packages.append('.'.join(tokens))
+    return packages
+
+
+requirements_file, tests_requirements_file = {
+    False: ('requirements.txt', 'social/tests/requirements.txt'),
+    True: ('requirements-python3.txt', 'social/tests/requirements-python3.txt')
+}[PY3]
+
+with open(requirements_file, 'r') as f:
+    requirements = f.readlines()
+
+with open(tests_requirements_file, 'r') as f:
+    tests_requirements = [line for line in f.readlines() if '@' not in line]
+
+setup(
+    name='python-social-auth',
+    version=version,
+    author='Matias Aguirre',
+    author_email='matiasaguirre@gmail.com',
+    description='Python social authentication made simple.',
+    license='BSD',
+    keywords='django, flask, pyramid, webpy, openid, oauth, social auth',
+    url='https://github.com/omab/python-social-auth',
+    packages=get_packages(),
+    long_description=long_description(),
+    install_requires=requirements,
+    classifiers=[
+        'Development Status :: 4 - Beta',
+        'Topic :: Internet',
+        'License :: OSI Approved :: BSD License',
+        'Intended Audience :: Developers',
+        'Environment :: Web Environment',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3'
+    ],
+    package_data={
+        'social/tests': ['social/tests/*.txt']
+    },
+    extras_require={
+        'django': ['social-auth-app-django'],
+        'django-mongoengine': ['social-auth-app-django-mongoengine'],
+        'flask': ['social-auth-app-flask', 'social-auth-app-flask-sqlalchemy'],
+        'flask-mongoengine': ['social-auth-app-flask-mongoengine'],
+        'flask-peewee': ['social-auth-app-flask-peewee'],
+        'cherrypy': ['social-auth-app-cherrypy'],
+        'pyramid': ['social-auth-app-pyramid'],
+        'tornado': ['social-auth-app-tornado'],
+        'webpy': ['social-auth-app-webpy']
+    },
+    include_package_data=True,
+    tests_require=tests_requirements,
+    test_suite='social.tests',
+    zip_safe=False
+)

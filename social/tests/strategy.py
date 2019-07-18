@@ -19,12 +19,13 @@ class TestTemplateStrategy(BaseTemplateStrategy):
 
 
 class TestStrategy(BaseStrategy):
-    def __init__(self, *args, **kwargs):
+    DEFAULT_TEMPLATE_STRATEGY = TestTemplateStrategy
+
+    def __init__(self, storage, tpl=None):
         self._request_data = {}
         self._settings = {}
         self._session = {}
-        kwargs.setdefault('tpl', TestTemplateStrategy)
-        super(TestStrategy, self).__init__(*args, **kwargs)
+        super(TestStrategy, self).__init__(storage, tpl)
 
     def redirect(self, url):
         return Redirect(url)
@@ -49,6 +50,26 @@ class TestStrategy(BaseStrategy):
         """Return current host value"""
         return TEST_HOST
 
+    def request_is_secure(self):
+        """ Is the request using HTTPS? """
+        return False
+
+    def request_path(self):
+        """ path of the current request """
+        return ''
+
+    def request_port(self):
+        """ Port in use for this request """
+        return 80
+
+    def request_get(self):
+        """ Request GET data """
+        return self._request_data.copy()
+
+    def request_post(self):
+        """ Request POST data """
+        return self._request_data.copy()
+
     def session_get(self, name, default=None):
         """Return session value for given key"""
         return self._session.get(name, default)
@@ -71,8 +92,9 @@ class TestStrategy(BaseStrategy):
     def set_settings(self, values):
         self._settings.update(values)
 
-    def set_request_data(self, values):
+    def set_request_data(self, values, backend):
         self._request_data.update(values)
+        backend.data = self._request_data
 
     def remove_from_request_data(self, name):
         self._request_data.pop(name, None)
@@ -83,7 +105,7 @@ class TestStrategy(BaseStrategy):
             self.session_set('username', user.username)
         return user
 
-    def get_pipeline(self):
+    def get_pipeline(self, backend=None):
         return self.setting('PIPELINE', (
             'social.pipeline.social_auth.social_details',
             'social.pipeline.social_auth.social_uid',
